@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ghoststomper Sphere Controller</title>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
-    <script src="https://apis.google.com/js/api.js"></script>
     <style>
         body { font-family: 'Segoe UI', sans-serif; background: #0f0f0f; color: #eee; margin: 0; padding: 20px; }
         h1 { color: #00ffcc; text-align: center; }
@@ -24,8 +23,8 @@
     <h1>Ghoststomper Sphere Controller</h1>
 
     <div id="loginSection">
-        <div id="g_id_signin"></div>
-        <p style="color:#aaa;">Sign in to send as yourself</p>
+        <button onclick="authorizeUser()" style="background:#4285f4; color:white; padding:16px; font-size:1.1em; width:100%;">🔑 Authorize YouTube Access</button>
+        <p style="color:#aaa; margin-top:10px;">This will allow posting to chat as you</p>
     </div>
 
     <div id="mainApp" style="display:none;">
@@ -37,7 +36,7 @@
 
             <div class="info">
                 <h2 id="greeting">Welcome</h2>
-                <p><strong>Chat ID:</strong> <span id="chatIdDisplay">Loaded from chatid.txt</span></p>
+                <p><strong>Chat ID:</strong> <span id="chatIdDisplay">From chatid.txt</span></p>
                 
                 <div class="value"><span>Hex</span><span id="hexValue">#ffffff</span></div>
                 <div class="value"><span>HSV</span><span id="hsvValue">298, 92, 100</span></div>
@@ -54,37 +53,32 @@
         let currentHue = 298, currentSat = 92;
         let liveChatId = "";
 
-        // Load chat ID
         async function loadChatId() {
             try {
                 const res = await fetch('chatid.txt');
                 liveChatId = (await res.text()).trim();
-                document.getElementById('chatIdDisplay').textContent = liveChatId.substring(0, 20) + "...";
-            } catch (e) {
-                document.getElementById('chatIdDisplay').textContent = "chatid.txt not found";
-            }
+                document.getElementById('chatIdDisplay').textContent = liveChatId ? liveChatId.substring(0,25) + "..." : "Not found";
+            } catch (e) {}
         }
 
-        function initGoogle() {
-            google.accounts.id.initialize({
+        function authorizeUser() {
+            const client = google.accounts.oauth2.initTokenClient({
                 client_id: CLIENT_ID,
-                callback: handleCredentialResponse,
-                scope: "https://www.googleapis.com/auth/youtube.force-ssl"
+                scope: "https://www.googleapis.com/auth/youtube.force-ssl",
+                callback: (response) => {
+                    if (response.access_token) {
+                        accessToken = response.access_token;
+                        document.getElementById('loginSection').style.display = 'none';
+                        document.getElementById('mainApp').style.display = 'block';
+                        document.getElementById('greeting').textContent = "✅ Authorized";
+                        initColorWheel();
+                        loadChatId();
+                    }
+                }
             });
-            google.accounts.id.renderButton(document.getElementById("g_id_signin"), 
-                { theme: "filled_blue", size: "large", text: "signin_with" });
+            client.requestAccessToken();
         }
 
-        function handleCredentialResponse(response) {
-            accessToken = response.credential;  // This may still be ID token - we may need full OAuth
-            document.getElementById('loginSection').style.display = 'none';
-            document.getElementById('mainApp').style.display = 'block';
-            document.getElementById('greeting').textContent = "✅ Logged in";
-            initColorWheel();
-            loadChatId();
-        }
-
-        // Color Wheel (unchanged from previous)
         function initColorWheel() {
             const canvas = document.getElementById('colorWheel');
             const ctx = canvas.getContext('2d');
@@ -146,7 +140,7 @@
         }
 
         async function sendToSphere() {
-            if (!liveChatId) return alert("No Chat ID loaded");
+            if (!liveChatId) return alert("No Chat ID loaded from chatid.txt");
 
             let hue = Math.round(currentHue);
             let sat = Math.round(currentSat);
@@ -174,11 +168,11 @@
                 });
 
                 if (res.ok) {
-                    status.textContent = `✅ !sphere ${code} sent!`;
+                    status.textContent = `✅ !sphere ${code} sent to chat!`;
                     status.className = 'status success';
                 } else {
-                    const err = await res.json();
-                    throw new Error(err.error?.message || "Unknown error");
+                    const errText = await res.text();
+                    throw new Error(errText);
                 }
             } catch (err) {
                 status.textContent = `❌ ${err.message}`;
