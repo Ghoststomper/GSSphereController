@@ -42,6 +42,7 @@
                 <div class="value"><span>HSV</span><span id="hsvValue">298, 92, 100</span></div>
                 
                 <button onclick="sendToSphere()" class="send-btn">🚀 SEND TO SPHERE</button>
+				<button onclick="claimCube()" class="send-btn">🚀 STEAL CUBE</button>
                 <div id="status" class="status"></div>
             </div>
         </div>
@@ -169,6 +170,47 @@
 
                 if (res.ok) {
                     status.textContent = `✅ !sphere ${code} sent to chat!`;
+                    status.className = 'status success';
+                } else {
+                    const errText = await res.text();
+                    throw new Error(errText);
+                }
+            } catch (err) {
+                status.textContent = `❌ ${err.message}`;
+                status.className = 'status error';
+            }
+        }
+
+ async function claimCube() {
+            if (!liveChatId) return alert("No Chat ID loaded from chatid.txt");
+
+            let hue = Math.round(currentHue);
+            let sat = Math.round(currentSat);
+            if (sat === 100) sat = 99;
+            const code = hue.toString().padStart(3,'0') + sat.toString().padStart(2,'0');
+
+            const status = document.getElementById('status');
+            status.textContent = `Sending !sphere ${code}...`;
+            status.className = 'status';
+
+            try {
+                const res = await fetch('https://www.googleapis.com/youtube/v3/liveChat/messages?part=snippet', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${accessToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        snippet: {
+                            liveChatId: liveChatId,
+                            type: "textMessageEvent",
+                            textMessageDetails: { messageText: `!cube` }
+                        }
+                    })
+                });
+
+                if (res.ok) {
+                    status.textContent = `✅ Cube steal sent to chat!`;
                     status.className = 'status success';
                 } else {
                     const errText = await res.text();
